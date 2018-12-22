@@ -1,0 +1,2343 @@
+マイコンボードを中継器にして PC に電子部品を接続し、Ruby で制御してみた（発光ダイオード編）
+Ruby
+Arduino
+cruby
+Firmata
+マイコンボード
+3
+
+この記事は、富士通ソーシアルサイエンスラボラトリ Advent Calendar 2018の 1 日目の記事です。
+
+はじめに
+@GORO_Neko です。ご存知の方ご無沙汰してます。初めての方お初にお目にかかります。
+
+えーっと、先にお断りをば一言。
+
+自分、仕事では一切マイコンボードを利用した業務に携わったことがございません。
+
+以下は、自分が所属する会社の意向を反映したものでもスタンスを示すものでもなく、単なる一個人の趣味の活動から産まれた記述です。
+
+PC に電子部品を接続したい & PC 上の Ruby で制御したい
+そう、なるべくお手軽な方法で PC にセンサー等電子部品を接続したいのです。
+Raspberry PI とかみたいに GPIO 等を持っている、特殊な PC ではなくて、所謂デスクトップ PC だのノート PC だのよくある PC に。
+
+PC 等から Arduino の GPIO を制御する技術として Firmata と言う技術があります。
+
+Firmata を利用することで、PC側から Arduino のようなマイコンに対し、マイコンやマイコンに接続したセンサ等電子部品から汎用入出力の値の取得・書き込みその他の操作を行うことが可能になります。
+
+特に Arduino のマイコンボードには、公式からマイコンボードを Firmata 対応にするためのライブラリ等が提供されています。
+
+Java や node.js 等には、非公式ながら Firmata プロトコルを利用するためのライブラリが存在します。
+
+Ruby では @shokai 氏が Java 版のものを移植して作成した、Arduino Firmata on Ruby を公開してくださっています。
+
+でなわけで、今回は Arduino Uno （ *1 ）を中継器に、手元のノート PC と 電子部品をつないでみます。
+
+*1: と言いつつバチモン中国製の互換品（ *2 ）ですが … 
+*2: Arduino は Open source hardware なので、無料公開されている EAGLE ファイルに従って誰でも互換品を作ることが出来ます。
+
+Arduino Uno を Firmata 対応にする
+やり方は簡単です。
+
+Arduino の公式開発環境である ArduinoIDE を使って、公式が提供する Firmata アプリケーションをビルドして、Arduino Uno に書き込むだけ。
+
+そう、
+1. ArduinoIDE を立ち上げるて
+2. スケッチの例＞Firmata＞StandardFirmataを選択して
+20181121_01.png
+3. アプリケーションを Arduino Uno に書き込む
+ただこれだけで OK です。
+
+使ってみる（初回・L チカ編）
+何か新しい言語を使ってプログラミングを行う時、自分はついつい "Hello World" と標準出力させる派です。
+
+マイコンボードを使って何かをやる時も、ついつい初回は L チカさせちゃう派だったりします。
+
+と言うわけで、以下のように "Digital 11 Pin → LED → GND" とハードウェアを結線して、
+PC 上の Ruby で LED をチカチカさせてみることにします。
+
+※ "Digital 11 Pin" 側に LED の長い側の足を、"GND" 側に LED の短い側の足を、それぞれ「エイヤつ！」っと突っ込みます。
+
+[写真]
+image1.jpeg
+
+[回路図]
+回路図.png
+
+Arduino Firmata on Ruby の使い方がネット上に公開されているので、これを参考に以下のようなスクリプトを組みます。
+
+※ スクリプト 2 行目の "/dev/tty.usb-device-name" の "usb-device-name" の部分は各自の環境に合わせて書き換える必要があります。自分の環境では "ttyUSB0" でした。
+
+[firmata-test-001.rb]
+
+require "arduino_firmata"
+arduino = ArduinoFirmata.connect "/dev/tty.usb-device-name"
+loop do
+  arduino.digital_write 11, true
+  sleep 1
+  arduino.digital_write 11, false
+  sleep 1
+end
+はい、上記のスクリプトを実行すると、1 秒間隔で無事 LED がチカチカ点減しました。
+
+次回は、温度センサ（ LM61CIZ ）と PC をつないで、センサから温度情報を取り出し、PC を簡易温度計にしてみようと思います。
+
+では、また。
+
+@khsk Raspberry pi の綴りを間違えておりました。ご指摘感謝いたします。
+
+Raspbery → Raspberry by khsk 2018/12/03 14:22
+
+
+
+end_of_text
+
+
+マイコンボードを中継器にして PC に電子部品を接続し、Ruby で制御してみた（温度センサ編）
+Ruby
+Arduino
+cruby
+Firmata
+マイコンボード
+2
+
+この記事は、富士通ソーシアルサイエンスラボラトリ Advent Calendar 2018の 2 日目の記事です。
+
+はじめに
+@GORO_Neko です。ご存知の方ご無沙汰してます。初めての方お初にお目にかかります。
+
+えーっと、先にお断りをば一言。
+
+自分、仕事では一切マイコンボードを利用した業務に携わったことがございません。
+
+以下は、自分が所属する会社の意向を反映したものでもスタンスを示すものでもなく、単なる一個人の趣味の活動から産まれた記述です。
+
+PC に電子部品を接続したい & PC 上の Ruby で制御したい
+はい、これを実現する手段として Firmata と言う技術があることを昨日の記事で紹介いたしました。
+
+「 PC からの操作で電子部品を動かせる（発光ダイオードを点灯できる）のは解った。今度は電子部品から情報をとってきてみせろ。」そんな声が聞こえてきたので、引き続き電子部品から情報を取ってくる方法を書いてみます。
+
+Arduino Uno を Firmata 対応にする
+やり方は昨日の記事で説明しましたので割愛。
+
+Arduino IDE を使って StandardFirmata アプリケーションをビルドして、 Arduino Uno に書き込んでおく。ただこれだけです。
+
+温度センサをつないでみる。
+手元に転がっていたという理由から、温度センサとして LM61CIZ を、Arduino Uno 経由で PC に接続します。
+
+LM61CIZ と Arduino Uno の結線方法に関しては、以下の図を参照ください。
+
+[回路図]
+回路図２.png
+
+制御スクリプトについて
+以前 GitHub で公開した「マイコンボード（ GR-CITRUS ）と温度センサ（ LM61CIZ ）を使った温度取得スクリプト」を改造して、制御スクリプトを作成します。
+
+[制御スクリプト]
+
+firmata-test-002.rb
+# Author       : Yoshihiko Hara <goronyanko.h@gmail.com>
+# last updated : 2018/12/2
+# Overview     : Get temperature data from "LM61CIZ" connected to PC with Ruby.
+# License      : MIT License
+
+require "arduino_firmata"
+
+def mapping_data(conversion_targetfloat,in_min,in_max,out_min,out_max)
+
+  # Convert "conversion_targetfloat" from "in_min" to "in_max" range to "out_min” to ”out_max" range.
+  return (conversion_targetfloat - in_min) * (out_max - out_min) / (in_max - in_min) + out_min
+
+end
+
+# Minimum value and maximum value of data that each device can return
+PIN_NUMBER_OF_A0               =    0
+DELAY_TIME                     = 1000
+MIN_INPUT_VALUE_OF_ANALOGPIN   =    0
+MAX_INPUT_VALUE_OF_ANALOGPIN   = 1023
+MIN_VOLTAGE_VALUE_OF_ANALOGPIN =    0
+MAX_VOLTAGE_VALUE_OF_ANALOGPIN = 5000
+MIN_VOLTAGE_VALUE_OF_SENSOR    =  300.0
+MAX_VOLTAGE_VALUE_OF_SENSOR    = 1600.0
+MIN_TEMP_VALUE_OF_SENSOR       =  -30.0
+MAX_TEMP_VALUE_OF_SENSOR       =  100.0
+
+# Prepare to control Arduino from PC.
+arduino = ArduinoFirmata.connect "/dev/tty.usb-device-name"
+
+# Repeat the following operations.
+#  1. Read data from sensor.
+#  2. Convert the read data to air temperature.
+#  3. Show temperature data.
+#  4. Stop operation for 1000 ms (1 s).
+while true
+
+  # Read data from sensor (A 0 → 0 pin)
+  sensor_data = arduino.analog_read(PIN_NUMBER_OF_A0)
+
+  # Convert the read data to a voltage value.
+  voltage_data = mapping_data(sensor_data,MIN_INPUT_VALUE_OF_ANALOGPIN,MAX_INPUT_VALUE_OF_ANALOGPIN,MIN_VOLTAGE_VALUE_OF_ANALOGPIN,MAX_VOLTAGE_VALUE_OF_ANALOGPIN)
+
+  # Convert voltage value to temperature
+  temperature_data = mapping_data(voltage_data.to_f,MIN_VOLTAGE_VALUE_OF_SENSOR,MAX_VOLTAGE_VALUE_OF_SENSOR,MIN_TEMP_VALUE_OF_SENSOR,MAX_TEMP_VALUE_OF_SENSOR)
+
+  # Output temperature data to STDOUT of PC.
+  puts temperature_data.to_s
+
+  # Stop operation for 1 S.
+  sleep 1
+
+end
+上記のスクリプトを実行すると、約 1 秒間隔温で度センサから得られた気温データが PC 上に表示されます。
+
+実行結果はこんな感じ。
+途中から気温が上がっているように表示されているのは、指でセンサーを温めて、一生懸命感知される温度を押し上げたからです。
+
+[実行結果]
+Screenshot from 2018-12-01 20-36-12.png
+
+無事 PC が簡易温度計に変じました。
+
+では、また。
+
+
+
+end_of_text
+
+
+
+フロントエンド初心者が、ReactでHelloWorldしてみた（ブラウザ上編）
+初心者
+ブラウザ
+HelloWorld
+フロントエンド
+React
+1
+
+フロントエンド初心者が、ReactでHelloWorldしてみた（ブラウザ上編）
+by moriyatakashijp
+
+1 / 8
+
+はじめに
+モリヤ@moriyatakashijp
+フロントエンド初心者です
+フロントエンドに興味があるけど、時間が取れない人のために
+短時間で学習できるように、LT風にまとめます
+React.js（React）とは
+
+- Facebookが公開しているJavaScriptライブラリ
+- Model、View、Controller（MVC）のViewに特化
+- 初期版が2013年、最新版はv16（2018年11月）
+
+なぜReactなのか
+We Are JavaScripters!というJavaScript勉強会にて過去1年間にもっとも多く発表されたキーワードが「React」（2018年11月時点）
+React.jsを利用している企業の一覧(WantedlyTools)Reactを利用している企業も増えてきている
+HelloWorldしてみた
+index.html
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>React Tutorial</title>
+</head>
+<body>
+    <div id="app"></div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/15.3.1/react.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/15.3.1/react-dom.js"></script>
+    <script src="https://unpkg.com/babel-core@5.8.38/browser.min.js"></script>
+    <script type="text/babel">
+    ReactDOM.render(
+        <h1>Hello, world!</h1>,
+        document.getElementById('app')
+    );
+    </script>
+</body>
+</html>
+Reactで「Hello world」 – React入門
+動作確認
+HTMLファイルをブラウザで開く
+画面に「Hello, world!」と表示
+動作確認（GitHub Pages）
+まとめ
+ブラウザ上で動かす事はすぐできます
+仕組みを理解するには環境構築が必要です
+詳しく学びたい方は、React入門をご参考ください
+次回以降、Vue.jsなど他のライブラリも試しながら、理解を深めていきます
+END
+
+
+
+end_of_text
+
+
+フロントエンド初心者が、Vue.jsでHelloWorldしてみた（ブラウザ上編）
+初心者
+ブラウザ
+HelloWorld
+vue.js
+フロントエンド
+0
+
+フロントエンド初心者が、Vue.jsでHelloWorldしてみた（ブラウザ上編）
+by moriyatakashijp
+
+1 / 8
+
+はじめに
+モリヤ@moriyatakashijp
+フロントエンド初心者です
+フロントエンドに興味があるけど、時間が取れない人のために（焼き直しですみません）
+短時間で学習できるように、LT風にまとめます
+Vue.js(Vue)とは
+vue.png
+- UIを構築するためのプログレッシブフレームワーク
+- React.jsと同様、Viewに特化したJSライブラリ
+- 初版が2014年、最新版はv2.x（2018年12月時点）
+
+なぜVueなのか
+HTMLとES5 JavaScriptにより学習コストが低い
+シングルページアプリケーション(SPA)が開発可能
+大規模なアプリケーションにも対応できる
+HelloWorldしてみた
+index.html
+<!DOCTYPE html>
+<title>はじめてのVue.js</title>
+<script src="https://unpkg.com/vue@2.5.17"></script>
+
+<div id="app"></div>
+
+<script>
+new Vue({
+    template: '<p>{{msg}}</p>',
+    data: { msg: 'hello world!'}
+}).$mount('#app')
+</script>
+Vue.js入門 基礎から実践アプリケーション開発まで
+動作確認
+HTMLファイルをブラウザで開く
+画面に「hello world!」と表示
+動作確認（GitHub Pages）
+まとめ
+ブラウザ上で動かす事は、React同様すぐできる
+公式Webサイトが日本語に対応している
+詳しく学びたい方は、Vue.js入門 基礎から実践アプリケーション開発までをご参考ください
+次回以降、もっと深く学びたいけど、Angularとか試すかもしれません
+END
+
+
+
+end_of_text
+
+
+
+マイコンボードを中継器にして PC に電子部品を接続し、Ruby で制御してみた（サーボモータ編）
+Ruby
+Arduino
+cruby
+Firmata
+マイコンボード
+1
+
+この記事は、富士通ソーシアルサイエンスラボラトリ Advent Calendar 2018の 5 日目の記事です。
+
+はじめに
+@GORO_Neko です。ご存知の方ご無沙汰してます。初めての方お初にお目にかかります。
+
+えーっと、先にお断りをば一言。
+
+自分、仕事では一切マイコンボードを利用した業務に携わったことがございません。
+
+以下は、自分が所属する会社の意向を反映したものでもスタンスを示すものでもなく、単なる一個人の趣味の活動から産まれた記述です。
+
+PC に電子部品を接続したい & PC 上の Ruby で制御したい
+と言うわけで Firmata と言う技術を使って、発光ダイオードや温度センサを、PC 上に用意した Ruby スクリプトで制御する方法を紹介してまいりました。
+
+図に乗って第 3 段！
+今度は、サーボモータを制御してみようと思います。
+
+Arduino Uno を Firmata 対応にする
+やり方はこちらの記事で説明しましたので割愛。
+
+Arduino IDE を使って StandardFirmata アプリケーションをビルドして、 Arduino Uno に書き込んでおく。ただこれだけです。
+
+サーボモータをつないでみる。
+秋葉原の電子パーツ屋やネットショップで簡単に購入可能という理由から、サーボモータとして SG90 を、Arduino Uno 経由で PC に接続します。
+
+SG90 と Arduino Uno の結線方法に関しては、以下の図を参照ください。
+
+[回路図]
+無題2.png
+
+制御スクリプトについて
+SG90 制御用に、以下のスクリプトを作成します。
+
+[制御スクリプト]
+
+firmata-test-003.rb
+# Author       : Yoshihiko Hara <goronyanko.h@gmail.com>
+# last updated : 2018/12/3
+# Overview     : Control the servomotor with Ruby on the PC.
+# License      : MIT License
+
+require "arduino_firmata"
+
+# Minimum value and maximum value of data that each device can return
+PIN_NUMBER_OF_A0               = 9
+DELAY_TIME                     = 1
+
+# Prepare to control Arduino from PC.
+arduino = ArduinoFirmata.connect "/dev/tty.usb-device-name"
+
+while true
+
+  # Generate rotation angle randomly
+  angle = rand 180
+  puts "servo angle #{angle}"
+
+  # Rotate the servomotor by the generated rotation angle.
+  arduino.servo_write PIN_NUMBER_OF_A0, angle
+
+  # Stop operation for 1 S.
+  sleep DELAY_TIME
+
+end
+約 1 秒間隔で、サーボモータがカクカクと動くはずです。
+
+モータの軸にサーボホーンを取り付けた上で実行することを推奨致します。
+
+そうしとかないと、モータがなんか動いたことはわかっても、ランダムに生成された角度に従ってモータが動いてるんだかなんだか、多分見ただけじゃよくわからないと思います。
+
+サーボモータをいくつか組み合わせてマジックハンドのようなものを作り、PC から制御してやったら面白いんじゃないかな。そんな風に思っています。
+
+では、また。
+
+
+
+end_of_text
+
+
+
+最初に覚えて欲しいPythonのロギング
+Python
+21
+
+はじめに
+簡単な使い捨てのコードならprint()によるログでもいいんですが、Python標準のロギングも決して難しくないので、せっかくだから最初からこれを使いましょう、という話です。
+
+マサカリ歓迎。
+
+ライブラリを作る人向けの情報
+ライブラリを作る人は、getLogger()だけ覚えてください。
+引数は文字列ですが何でも良いです。とりあえず今回は__name__を入れておきましょう。
+
+from logging import getLogger
+
+logger = getLogger(__name__)
+logger.info('こんにちは！')
+クラスで使うなら、こんな感じ。
+
+animals/dog.py
+from logging import getLogger
+
+class Dog(object):
+    def __init__(self, name):
+        self.name = name
+        self.logger = getLogger(__name__)
+    def bark(self):
+        self.logger.debug('%s is barking')
+        self.logger.info('%s: bow!', self.name)
+ググっていると稀にgetLogger()せずに、loggingモジュールに直接info()等で出力するサンプルを見かけますが、その場合ルートロガーへの出力となってしまいます。
+ロガーは階層構造になっており、ルートロガー（階層構造の最上位）に出力してしまうと、後々仕分けなどで面倒なことになってしまいます。
+
+import logging
+logging.info('さようなら～')  # これは駄目
+必ず名前付きロガーを生成してから、出力しましょう。
+
+あと、ログ出力のときにformatを叩いているようなサンプルもありますが、ログを出力しないで済む場面（たとえば出力をINFO以上にしている場合のdebug()など）でもformatが必ず実行されるため、無駄に遅くなるので注意しましょう。（標準のフォーマッターがショボすぎるのがイカンのですが。）
+
+logger.debug('{}'.format(name))  # NG
+logger.debug('%s', name)  # OK!
+アプリケーションを作る人向けの情報
+アプリケーションというか、実行プログラム本体の方ですね。
+basicConfig()だけ覚えてください。
+
+main.py
+from logging import basicConfig, INFO
+from animals.dog import Dog
+
+if __name__ == '__main__':
+    basicConfig(level=INFO)
+
+    dog1 = Dog('pochi')
+    dog1.bark()  # => 'INFO:animals.dog:pochi: bow!'
+basicConfig()を使って、出力するログのレベル、出力先、フォーマットなどを指定できます。
+何もしなければ、WARNING以上を標準エラー出力に垂れ流すだけなので、最悪何もしなくても、そこそこ大丈夫です。
+
+注意すべきなのは、basicConfig()の呼び出しは、アプリケションの実行を通じて、最初の１回のみが有効なことです。
+importして使うファイルの中でbasicConfig()を呼び出してしまうと、アプリ側でログの設定変更が出来なくなってしまいますので、ライブラリの中でbasicConfig()は使わないようにしてください。
+
+ロガーは「階層構造」になっていると先に説明しましたが、アプリケーション全体はWARNING以上、animalsは開発中なのでDEBUG、でもDogクラスだけは開発が終わって安定しているのでINFOでログりたい、みたいな場合は以下のように設定できます。
+
+basicConfig(level=WARNING)
+getLogger('animals').setLevel(DEBUG)
+getLogger('animals.dog').setLevel(INFO)
+まとめ
+getLogger()だけ覚えてください。
+設定を変えたくなったらbasicConfig()を思い出してください。
+
+@sikkim 誤字修正、ありがとうございます。
+
+Typo修正(なからず→必ず) by sikkim 2018/12/05 10:54
+
+
+
+end_of_text
+
+
+
+マイコンボードを中継器にして PC に電子部品を接続し、Ruby で制御してみた（人感センサ編）
+Ruby
+Arduino
+cruby
+Firmata
+マイコンボード
+1
+
+この記事は、富士通ソーシアルサイエンスラボラトリ Advent Calendar 2018の 7 日目の記事です。
+
+はじめに
+@GORO_Neko です。ご存知の方ご無沙汰してます。初めての方お初にお目にかかります。
+
+えーっと、先にお断りをば一言。
+
+自分、仕事では一切マイコンボードを利用した業務に携わったことがございません。
+
+以下は、自分が所属する会社の意向を反映したものでもスタンスを示すものでもなく、単なる一個人の趣味の活動から産まれた記述です。
+
+PC に電子部品を接続したい & PC 上の Ruby で制御したい
+ここ数回 Firmata アプリケーションを書き込んだ Arduino Uno を中継器に、電子部品を PC 上のRuby スクリプトで制御できるよと言う記事を書いてきました。
+
+前回書いた記事までの各記事で、デジタル／アナログピンの read/write 方法およびサーボモータの制御方法をお伝えしました。
+
+この技術に頼った電子部品の制御方法は、ほぼこれですべてなので、もうそろそろこの技術に関する解説を書くのは「打ち止め！」と思っていたのですが、リアル世界の知人から「この技術で人感センサはコントロール出来ないの？」と質問されたので、もう一回だけこのネタで記事を書かせていただきます。
+
+Arduino Uno を Firmata 対応にする
+やり方はこちらの記事で説明しましたので割愛。
+
+Arduino IDE を使って StandardFirmata アプリケーションをビルドして、 Arduino Uno に書き込んでおく。ただこれだけです（おお、何回目の記述だろう）。
+
+人感センサをつないでみる。
+はい、パッシブ的に赤外線を感知するアレです。
+
+英語では Passive Infrared Ray(PIR)、日本語では焦電型赤外線センサと言うのが正式な名前のようです。
+
+センサの感知圏内に赤外線を発するもの（たとえば生きて体温と言う赤外線発生源である人間とか）が入ってくると、それを感知できるセンサです。
+
+いつものごとく秋葉原の電子パーツ屋やネットショップで簡単に購入可能という理由から、人感センサとして HC-SR501 を、Arduino Uno 経由で PC に接続します。
+
+HC-SR501 と Arduino Uno の結線方法に関しては、以下の図を参照ください。
+
+[回路図]
+無題3.png
+
+制御スクリプトについて
+SG90 制御用に、以下のスクリプトを作成します。
+このスクリプトにより、HC-SR501 が検知圏内に赤外線を発するものがないかを探ります。
+そして赤外線を発するものを検知すると、PC の画面上に「There are intruders !」と表示します。
+
+[制御スクリプト]
+
+firmata-test-004.rb
+# Author       : Yoshihiko Hara <goronyanko.h@gmail.com>
+# last updated : 2018/12/5
+# Overview     : Control Passive Infrared Ray(HC-SR501) with Ruby on the PC.
+# License      : MIT License
+
+require "arduino_firmata"
+
+PIN_NUMBER_OF_A0 = 2
+ALERT_MESSAGE    = "There are intruders !"
+DELAY_TIME       = 1
+
+# Prepare to control Arduino from PC.
+arduino = ArduinoFirmata.connect "/dev/tty.usb-device-name"
+
+while true
+
+  # Search for something emitting infrared rays.
+  if true == arduino.digital_read PIN_NUMBER_OF_A0
+    puts ALERT_MESSAGE
+  end
+
+  # Stop operation for 1 S.
+  sleep DELAY_TIME
+
+end
+HC-SR501 はセンサ正面から 110 度、最大距離 7 m （適正検知距離 3 - 7 m ）の範囲に赤外線を発するものが侵入したか否かを検知できます。
+
+センサーを通路の天井や、出入り口の上部に設置しておけば、誰かが通過するたびにそれを検知できそうです。
+ちょっとした侵入探知機代わりになってくれるかなと思っています。
+
+※ センサについている検知距離や検知感覚をさだめる 2 つの半固定抵抗をいじったりしないとうまく反応しないかも … しかも結構（部品により？）反応するしないがピーキーだったり
+
+では、また。
+
+
+
+end_of_text
+
+
+
+proxy が存在するネットワークから、インターネット上の何かにアクセスする
+proxy
+5
+
+この記事は、富士通ソーシアルサイエンスラボラトリ Advent Calendar 2018 の 8 日目の記事です。
+
+はじめに
+@GORO_Neko です。ご存知の方ご無沙汰してます。初めての方お初にお目にかかります。
+
+えーっと、先にお断りをば一言。
+
+自分、別段ネットワーク関係のスペシャリストでも何でもありません（そう言えば、その手の取得済み資格の中に、ネットワーク絡みの資格って一切なかったな（^^;　）。
+
+以下は、自分が所属する会社の意向を反映したものでもスタンスを示すものでもなく、単なる一個人の趣味の活動から産まれた記述です。
+
+proxy が存在するネットワークから、インターネット上の何かにアクセスする
+特にユーザ認証（ユーザ名とパスワードを proxy に伝えないと、お外に出させてくれないアレ！）がいる設定の proxy が存在するネットワークからお外のネットワーク（所謂インターネット）へ出ていくための方法の例をいくつか解説します。
+
+実はこの情報を Advent Calendar に発信するのは 2 回目だったりして。
+初出はここ Qiita ではなくて、某閉じた世界にひっそり開設されたカレンダ上でした。
+たしか「当時」は 2015 年だったはずなのでもう 3 年も前の話。情報を書いたテキストを、そのままべたっとカレンダのページに張ったような覚えが …
+
+しかし今でも身の回りの IT 屋さん達（新人さんどころか結構トシいった人も）来る日も来る日も「このコマンドがネットワーク乗り越えられなくて、インターネットからモノを取ってこれない（あたふた）」「ググっても対処方法が見つからない（しくしく）」言い続けてらっしゃるようなので、情報をちょっと追加してもう一回書いてみようと思います。
+
+対象にするツールやコマンド
+このドキュメントでは、以下のツールやコマンド（一部プロトコル）で、インターネットの情報にアクセスしたりアーカイブファイル等何かの資源を取得したりする方法を解説します。
+
+[対象]
+1. HTTP/HTTPS/FTP プロトコル（ブラウザで外部ページを参照する以外に、apt-get コマンドもこれで使えるようになります）
+2. yum コマンド
+3. curl コマンド
+4. wget コマンド
+5. git コマンド
+6. Apache Maven
+7. Docker-CE（ docker pull とかする場合必要になるはずです）
+
+やり方
+HTTP/HTTPS/FTP プロトコル
+以下の環境変数を設定します。
+
+http_proxy=http://[Proxyアクセス用ユーザ名]:[Proxyアクセス用パスワード]@[ProxyのURL]:[Proxyのポート番号]
+https_proxy=http://[Proxyアクセス用ユーザ名]:[Proxyアクセス用パスワード]@[ProxyのURL]:[Proxyのポート番号]
+ftp_proxy=http://[Proxyアクセス用ユーザ名]:[Proxyアクセス用パスワード]@[ProxyのURL]:[Proxyのポート番号]
+HTTP_PROXY=http://[Proxyアクセス用ユーザ名]:[Proxyアクセス用パスワード]@[ProxyのURL]:[Proxyのポート番号]
+HTTPS_PROXY=http://[Proxyアクセス用ユーザ名]:[Proxyアクセス用パスワード]@[ProxyのURL]:[Proxyのポート番号]
+FTP_PROXY=http://[Proxyアクセス用ユーザ名]:[Proxyアクセス用パスワード]@[ProxyのURL]:[Proxyのポート番号]
+
+コマンド/ツールにより環境変数が大文字のものしか認識しないもの、小文字しか認識しないものがあることに注意が必要です。
+
+Proxy アクセス用ユーザ名/パスワード等にパラメタの区切り文字（'@'等）を含む場合、エスケープ文字表記に書き換える必要があります。
+
+例えはユーザ名が "username@example.com" だった場合は "username%40example.com" と記述する必要があります。
+ここに限らず、以降説明する方法でうまく proxy を乗り越えられない場合は、"@" を含む文字列をユーザ名/パスワードとして記述していないかチェックしてみてください。
+
+yum コマンド
+'/etc/yum.conf'の末尾に、以下の情報を追記してください。
+
+proxy=http://[ProxyのURL]:[Proxyのポート番号]
+proxy_username=[Proxyアクセス用ユーザ名]
+proxy_password=[Proxyアクセス用パスワード]
+
+curl コマンド
+コマンドを利用するユーザのホームディレクトリ（'/root'、'/home/xxx'等）直下に以下の内容の '.curlrc' ファイルを作成してください。
+
+proxy-user = "[Proxyアクセス用ユーザ名]:[Proxyアクセス用パスワード]"
+proxy = "http://[ProxyのURL]:[Proxyのポート番号]"
+
+wget コマンド
+コマンドを利用するユーザのホームディレクトリ（'/root'、'/home/xxx'等）直下に以下の内容の '.wgetrc' ファイルを作成してください。
+
+http_proxy=[ProxyのURL]:[Proxyのポート番号]
+https_proxy=[ProxyのURL]:[Proxyのポート番号]
+ftp_proxy=[ProxyのURL]:[Proxyのポート番号]
+proxy_user=[Proxyアクセス用ユーザ名]
+proxy_password=[Proxyアクセス用パスワード]
+
+git コマンド
+以下のコマンドを実行してください。
+
+git config --global http.proxy http://[Proxyアクセス用ユーザ名]:[Proxyアクセス用パスワード]@[ProxyのURL]:[Proxyのポート番号]
+git config --global https.proxy http://[Proxyアクセス用ユーザ名]:[Proxyアクセス用パスワード]@[ProxyのURL]:[Proxyのポート番号]
+
+または、コマンドを利用するユーザのホームディレクトリ（'/root'、'/home/xxx'等）直下に以下の内容の '.gitconfig' ファイルを作成してください。
+
+[http]
+        proxy = http://[Proxyアクセス用ユーザ名]:[Proxyアクセス用パスワード]@[ProxyのURL]:[Proxyのポート番号]
+[https]
+        proxy = http://[Proxyアクセス用ユーザ名]:[Proxyアクセス用パスワード]@[ProxyのURL]:[Proxyのポート番号]
+
+Apache Maven
+'/conf/settings.xml' の '～' に以下を追記してください。
+
+<proxy>
+  <id>optional</id>
+  <active>true</active>
+  <protocol>http</protocol>
+  <username>[Proxyアクセス用ユーザ名]</username>
+  <password>[Proxyアクセス用パスワード]</password>
+  <host>[ProxyのURL]</host>
+  <port>[Proxyのポート番号]</port>
+</proxy>
+
+Docker-CE
+設定ファイル "http-proxy.conf"（*1)に、以下の形式で Proxy 情報を追記してください。
+
+*1: CentOS → /etc/systemd/system/docker.service.d/http-proxy.conf
+
+[Service]
+Environment="FTP_PROXY=http://[Proxyアクセス用ユーザ名]:[Proxyアクセス用パスワード]@[ProxyのURL]:[Proxyのポート番号]" "HTTP_PROXY=http://[Proxyアクセス用ユーザ名]:[Proxyアクセス用パスワード]@[ProxyのURL]:[Proxyのポート番号]" "HTTPS_PROXY=http://[Proxyアクセス用ユーザ名]:[Proxyアクセス用パスワード]@[ProxyのURL]:[Proxyのポート番号]" "NO_PROXY=localhost,127.0.0.1,[稼働環境に割り当てられたIP（ ex. 10.0.0.1 ）]"
+
+Docker サービスを再起動しないと、修正した設定が反映されないことに注意してください。
+
+proxy が存在するネットワーク下で作業をされている方々の苦労が少しでも減ることを願いつつ。
+それでは、また。
+
+
+
+end_of_text
+
+
+
+Adobe XD CCでモックアップをサクサク作ろう
+AdobeXD
+モックアップ
+1
+
+今更ですが、Adobe XDを使ってみました。
+
+Adobe XD CCとは
+Adobe が提供しているUI/UX確認用のモックアップ作成ツール
+https://www.adobe.com/jp/products/xd.html
+
+できること
+マウス操作でアプリ画面っぽいものをサクサク作れます。
+作ったモックアップを公開して、一般に確認してもらうことができます。
+
+無料でも使えます
+
+どう入手するのか
+Adobe Creative Cloudを契約している場合
+Creative Cloud から「XD CC」をインストールします。
+
+Adobe Creative Cloudを契約していない場合
+クライアントアプリなので、Adobe XD CCのページ( https://www.adobe.com/jp/products/xd.html )の右上にある
+XDを無料で入手
+のリンクからインストーラーをダウンロードします。
+
+インストーラーを起動すると、モジュールを勝手にダウンロードしてインストールしてしまいます。
+
+※Adobe IDがないと、どこかでAdobe IDの作成が必要になります。
+
+どう使うのか
+最初にやること
+XDアイコン
+XD CCを起動します。
+
+基本操作
+Adobe製品にしては珍しく、Ctrl+マウスホイールで拡縮できます。
+パン(画面のスクロール)は、ホイールボタンのドラッグ、スペース押したままのドラッグとかでやるらしいです。
+あとは直感的操作が可能です。
+ショートカット一覧(まったく覚えてません)
+https://helpx.adobe.com/jp/xd/help/keyboard-shortcuts.html
+
+作ってみる
+ホーム画面から作りたいプラットフォームを選ぶ。 iPhone(スマートフォン)/iPad(タブレット)/Web(PCブラウザ)/カスタム から選択
+ペタペタ貼り付ける 貼れるものは少ないです。
+メニュー
+上から、オブジェクトの選択/操作、四角オブジェクト、円オブジェクト、直線、フリー線、テキスト、アートボード、拡大
+しかありません。
+四角や円の中に、画像ファイルをドロップすると、勝手にトリミングして貼り付きます(便利!)
+3. 次の画面を作る
+メニューの「アートボード」で、新しい画面を作ります。
+
+フリーのエリアにアートボードでページを作るとか、Illustratorっぽい考え方ですね。
+4. 画面遷移を作る
+左上の「プロトタイプ」を選択して、遷移を作っていきます。
+モード
+オブジェクトを選択すると出てくる青の出っ張りをドラッグして、次のページに繋げます。
+でっぱり
+接続
+
+この繰り返しでモックアップを作っていきます。
+
+試してみる
+ある程度遷移ができたら、操作を試してみます。
+右上のプレビューボタンを押して動作を確認してみましょう。
+プレビューボタン
+満足する操作ができたら、共有してテストしてもらいます。
+共有メニュー
+※無料だと共有のリンクがひとつしか作成できないらしいです。
+
+ちなみに
+チュートリアルを試すと、これまで説明したことを学べます!
+チュートリアル画面
+
+最後に
+こういったツールでモックアップをさっさと作って、イメージを共有するために有効だと思います。
+お試しください!
+
+
+
+end_of_text
+
+
+
+蠟引紙（ろうびきし）でアドベントツリー作ってみた
+クリスマス
+デザイン,UI
+蝋
+3
+
+＜ 序章 ＞
+先日、妻に急に「ろう引きするよっ」って言われて
+「なにそれ？」って警戒心まる出しなリアクションをとりましたが、
+まあやってみたら
+思のほかいい感じになったので、ご紹介です。
+
+みなさんも
+
+さあ、ろう引きするよっ
+材料：　ろうそく、紙、クッキングシート
+道具：　アイロン、アイロン台、ポリ袋、ハンマー（叩けるもの）、
+あれば良いかも：　不要な布（紙より大きな）、木枠
+
+材料は100均で買えます。紙は私はA4用紙使いました。
+
+ろうそくの量は私の場合、A4用紙１枚で１本。
+３号サイズ？を一本ですかね？
+１１２ｇ／１０本入りをキャンドゥで買いました。
+とにかく、数枚作る程度だと１箱とかで十分かと思います。
+
+ついでにアドベントツリー作ろうよ
+ただの紙をろうびきするのではつまらないので、
+アドベントツリーを作ってみたいと思います。
+アドベントツリーは我が家の造語で
+アドベントカレンダーをクリスマスツリー的なデザインでやることを意味します。
+
+そして、ここまでで何のプログラム的な技術的な要素がありませんので、
+無理矢理アプリにしようかと思います。（やっていくなかで思いついたら）
+
+＜ １章 デザインを決める ＞
+ここは適当でOKです。
+アドベントツリーはやはりモミの木が良いと思います。実にそれっぽいです。
+クリスマスツリーとしてあまり飾られる前の写真なりイラストが良いかと思います。
+
+tree_v1.1_web.jpg
+
+ノリで2018としましたが、あとで思ったこととして、
+つけなければ来年以降も使えたなと思いました。。
+
+＜ ２章 下準備 ＞
+ろうそくを粉々にします。
+ポリ袋などにろうそくを入れて、ハンマーなどで叩くと良いです。
+
+そこまで頑張ってに粉にする必要はないですが、
+後でアイロンする際に粒が大きすぎるとやりにくいです。（でもいつかは溶けます）
+試しながら徐々に粉々にしてもいいでしょう。
+
+＜ ３章 ろうびきする　＞
+アイロン台に用紙をクッキングシートで挟むようにしておきます。
+パン　＞　肉　＞　パン　の容量で、
+クッキングシート　＞　紙　＞　クッキングシート　です。
+
+この後、アイロンで伸ばすのですが、クッキングシートから蝋がはみ出すかもしれませんので
+クッキングシートを大き目にとるか
+さらに下にいらない布などを敷くと良いかと思います。
+
+次に、紙（肉）の上にろうそくソースをかけて、アイロンでなじませます。
+蝋の量が多いと、ただただハミ出していくのみですので、加減しながらどうぞ。
+
+まんべんなく沁みたら完成です。
+詳しくは「ろうびき　紙」でご検索ください。
+
+＜ ４章 完成　＞
+こうなりました。（なんかすでにシール貼られてますが、、、）
+
+tree_web.jpg
+
+ちょっとわかりにくいので、
+フレームにはめた版も載せておきます。
+
+tree_result_web.jpg
+
+tree_result2_web.jpg
+
+ありがとうございました。
+
+そのうち、このコンテンツをもとに
+デジタルアドベントツリーつくろうと思います。
+
+蠟引紙（ろうびきし）でアドベントツリー作ってみた
+クリスマス
+デザイン,UI
+蝋
+3
+
+＜ 序章 ＞
+先日、妻に急に「ろう引きするよっ」って言われて
+「なにそれ？」って警戒心まる出しなリアクションをとりましたが、
+まあやってみたら
+思のほかいい感じになったので、ご紹介です。
+
+みなさんも
+
+さあ、ろう引きするよっ
+材料：　ろうそく、紙、クッキングシート
+道具：　アイロン、アイロン台、ポリ袋、ハンマー（叩けるもの）、
+あれば良いかも：　不要な布（紙より大きな）、木枠
+
+材料は100均で買えます。紙は私はA4用紙使いました。
+
+ろうそくの量は私の場合、A4用紙１枚で１本。
+３号サイズ？を一本ですかね？
+１１２ｇ／１０本入りをキャンドゥで買いました。
+とにかく、数枚作る程度だと１箱とかで十分かと思います。
+
+ついでにアドベントツリー作ろうよ
+ただの紙をろうびきするのではつまらないので、
+アドベントツリーを作ってみたいと思います。
+アドベントツリーは我が家の造語で
+アドベントカレンダーをクリスマスツリー的なデザインでやることを意味します。
+
+そして、ここまでで何のプログラム的な技術的な要素がありませんので、
+無理矢理アプリにしようかと思います。（やっていくなかで思いついたら）
+
+＜ １章 デザインを決める ＞
+ここは適当でOKです。
+アドベントツリーはやはりモミの木が良いと思います。実にそれっぽいです。
+クリスマスツリーとしてあまり飾られる前の写真なりイラストが良いかと思います。
+
+tree_v1.1_web.jpg
+
+ノリで2018としましたが、あとで思ったこととして、
+つけなければ来年以降も使えたなと思いました。。
+
+＜ ２章 下準備 ＞
+ろうそくを粉々にします。
+ポリ袋などにろうそくを入れて、ハンマーなどで叩くと良いです。
+
+そこまで頑張ってに粉にする必要はないですが、
+後でアイロンする際に粒が大きすぎるとやりにくいです。（でもいつかは溶けます）
+試しながら徐々に粉々にしてもいいでしょう。
+
+＜ ３章 ろうびきする　＞
+アイロン台に用紙をクッキングシートで挟むようにしておきます。
+パン　＞　肉　＞　パン　の容量で、
+クッキングシート　＞　紙　＞　クッキングシート　です。
+
+この後、アイロンで伸ばすのですが、クッキングシートから蝋がはみ出すかもしれませんので
+クッキングシートを大き目にとるか
+さらに下にいらない布などを敷くと良いかと思います。
+
+次に、紙（肉）の上にろうそくソースをかけて、アイロンでなじませます。
+蝋の量が多いと、ただただハミ出していくのみですので、加減しながらどうぞ。
+
+まんべんなく沁みたら完成です。
+詳しくは「ろうびき　紙」でご検索ください。
+
+＜ ４章 完成　＞
+こうなりました。（なんかすでにシール貼られてますが、、、）
+
+tree_web.jpg
+
+ちょっとわかりにくいので、
+フレームにはめた版も載せておきます。
+
+tree_result_web.jpg
+
+tree_result2_web.jpg
+
+ありがとうございました。
+
+そのうち、このコンテンツをもとに
+デジタルアドベントツリーつくろうと思います。
+
+@jnchito すみません、今回はタイムオーバーでそこまで行けませんでした。タグつけ直しておきます。
+
+本文を読んでもRubyの要素は皆無だったのでRubyタグは不要かと思われます by jnchito 2018/12/10 06:09
+
+
+utkamioka
+22contribution
+2018-12-10 08:25
+1
+Advent calendarに登録したURLが第4章直行になってます。
+
+
+Gilgame_Tencho
+3contribution
+2018-12-10 08:31
+0
+ありがとうございます。
+URL修正しました。
+
+
+
+end_of_text
+
+
+
+RaspberryPi で人感カメラを作ってみた
+Python
+RaspberryPi
+IoT
+4
+
+開始
+IoT事業を始める前のスバイクとして、
+人感カメラを作ってみました。
+人が席に座ると、写真が撮られ、ブザーも鳴なります。
+同時にSlackにメッセージを送ります。
+
+事前準備
+今回使った器材
+・Raspberry Pi Model B+
+・Raspberry Pi カメラモジュール
+・Raspberry Pi Starter Kit(ブザー、抵抗)
+・赤外線障害物検知センサーモジュール
+・microSDカード
+
+Raspberry Piセットアップ
+OSを入れるためSDカードをFAT32フォーマットする。
+
+Raspberry Piの公式サイトから、NOOBSと言うパックをダウンロードする。
+ダウンロードしたZIPファイルを解凍して、中身を全部SDカードにコピーする。
+公式サイト：https://www.raspberrypi.org/downloads/
+
+SDカードをRaspberry Piに挿入し、HDMIと電源を繋ぐ。
+画面にガイドが出てきて、それを従ってインストールする。
+NOOBSがOSのRaspbianとLibreELECがすでに内包してるので、
+初心者でも簡単にインストールできる。
+
+セットアップに疑問があるとき、以下の記事を参考してください。
+https://raspida.com/raspixnoobs
+
+ボード接続
+QS_20181210-134141.png
+- 画像の通り、部品を接続する。(赤い線は+、黒い線は-、黄色線はOutput)
+- Raspberry Pi カメラモジュールは 中央辺りのカメラ口に接続する。(電源を切る状態で行ってください)
+
+制御ファイル作成
+今回のプログラムの部分はPythonで作成した。
+
+buzzer.py
+#ブザークラス
+
+#GPIO制御ライブラリ
+import wiringpi
+#タイマーライブラリ
+import time
+
+Class Buzzer:
+    buzzer_pin = 0
+    def __init__(self,pin) :
+        self.buzzer_pin = pin
+        wiringpi.wiringPiSetupGpio()
+        wiringpi.pinMode(self.buzzer_pin,1)  
+
+    def buzz(self,second) :
+        #鳴り始める
+        wiringpi.digitalWrite(self.buzzer_pin,1)
+        time.sleep(second)
+        #止める
+        wiringpi.digitalWrite(self.buzzer_pin,1)
+
+watchdog.py
+#GPIO制御ライブラリ
+import wiringpi
+#HTTPリクエストライブラリ
+import requerts
+from datetime import datetime
+#タイマーライブラリ
+import time
+#RaspberryPiのカメラクラス
+import picamera
+#ブザークラスをインポート
+from buzzer import Buzzer
+
+sensor_pin = 24
+wiringpi.wiringPiSetupGpio()
+wiringpi.pinMode(sensor_pin,0)
+#カメラ設定
+with picamera.PiCamera() as camera:
+    #カメラ解像度
+    camera.resolution = (1024,768)
+    #無限ロープで監視
+    while True:
+        signal = 0
+        #センサーの信号を読み取り
+        signal = wiringpi.digitalRead(sensor_pin)
+        if(signal == 0):
+            #ブザーが鳴る
+            buzzer = Buzzer(27)
+            buzzer.buzz(1)
+
+            #写真を撮り、現在の時刻で命名して保存
+            now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            camera.capture('monitorphoto/'+now+'.jpg')
+
+            #Slack apiを使用し、メッセージを送る
+            requests.get("https:slcak.com/api/chat.postMessage?token=XXX&channel=XXX&text=XXX")
+最後
+複雑ではないか、センサー、Raspberry Pi、WEBAPIを
+一通り結んだ機能を実現しました。
+これからIoT関連調査対して、参考になれます。
+
+
+
+end_of_text
+
+
+
+Python in RedHat Enterprise Linux 8
+Python
+Linux
+RHEL
+3
+
+この記事は、富士通ソーシアルサイエンスラボラトリ Advent Calendar 12日目の記事です。
+初投稿でして、お作法がよろしくないところはご指摘ください。
+
+RedHat Enterprise Linux 8 来たる
+RedHat Enterprise Linux 8、RHEL 8 の beta 版がリリースされました。
+https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/8-beta/html-single/8.0_beta_release_notes/index
+
+拾い読みでも結構変化があることがわかります。
+
+RHEL 8 provides the following database servers: MariaDB 10.3, MySQL 8.0, PostgreSQL 10, PostgreSQL 9.6, and Redis 4.0.
+
+データベース周りでは MariaDB, PostgreSQL などが大きくバージョンアップします。
+
+On Red Hat Enterprise Linux 8, installing software is ensured by the new version of the YUM tool, which is based on the DNF technology.
+
+yum は DNF ベースのバージョンに置きかわります(使い方は変わらないとのこと)。
+
+そして、
+
+Python 3.6 is the default Python implementation in RHEL 8; limited support for Python 2.7 is provided.
+
+python は 3.6 が標準に！ python 2.7 は限定サポートへ。
+
+python のアップデートに関しては RedHat の開発者ブログで取り上げられていたので、この記事ではその内容をざっと追ってみたいと思います(現時点の beta 版に基づく内容であることをご承知おきください)。
+https://developers.redhat.com/blog/2018/11/14/python-in-rhel-8/
+
+過去の歴史
+開発者ブログに入る前に簡単におさらいです。
+python はバージョン 2 と 3 の間に非互換があり、RHEL は yum など OS 自身のシステムツールが python 2 を使用してたこと、安定志向の設計であることから python 3 はこれまで標準のバージョンとして採用されませんでした。
+
+開発時には Anaconda などの python の専用環境を使用することも多く、その場合には OS 側のバージョンの制約を受けませんが、そういった環境作成が必須となるとコンテナなどの作業環境の軽快さを損なうことにもなります。
+
+多くのライブラリなどが python 3 に対応してきた現状を考えると、やはり python 3 がデフォルトで使用できるほうが便利と言えるでしょう。
+
+Using Python in RHEL 8
+さて、開発者ブログの Using Python in RHEL 8 のセクションでは以下のことが書かれています。
+
+python を未インストールの場合、yum install python3のようにインストールする必要がある。
+標準でバージョンなしの python コマンドは存在しない。 yum install python3 または yum install python2 のように バージョンを明示する。
+なぜかというと、開発者の文脈依存の判断では python として実行した際に 2 と受け取る人と 3 と受け取る人の両方が存在しているから。
+alternatives --set python /usr/bin/python3 のように python コマンドをいずれかのバージョンで実行するように設定は可能であるが、この方法は 推奨しない 。理由は対象が python コマンドのみで、 yum install python-requests や pipコマンドは　alternatives のバージョン指定に対応しないため。
+pip, venv といったコマンドに頼らないこと。代わりに python3 -m pip, python3 -m venv, python2 -m virtualenv などを使用する。
+Third-party packages
+python の開発時には何らかのライブラリを使用することは良くあり、サードパーティパッケージのセクションでは、ライブラリの導入について述べられています。
+
+導入方法として(ネットで検索すると必ず書いてある) sudo pip install は 絶対に行わないこと！
+RHEL 8 は多くの部分で Python 3.6 に依存しているので、sudo pipは システムを壊す と心得ること。
+python3 -m venv --system-site-packages myenv のように python の仮想環境を使用するか、pip の --user スイッチを使用し yum などのシステムツールに影響を与えないようにします。
+システム全体(全ユーザー)で使用する場合には RPM パッケージをつくって、yum install しましょう。
+Platform-Python: The Python behind the curtain
+何となく怪しい感じになってきましたが、「システムを壊す」の背景の説明があります。
+
+python は標準で入っているわけではないのに、yum などのシステムツールが動作するのは、どんな魔法で可能なのか?
+“Platform-Python”を使ってシステムツールは動いています。これはユーザー用の python 3 とは別ですが、ディスク容量節約のためユーザー用の python 3.6 とライブラリは共有しています。
+ユーザーアプリで“Platform-Python”を使わないこと。システムツールを開発するなら“Platform-Python”を使うこと。
+Porting to Python 3
+省略します。今時アプリは pyhton 3 で開発しましょう。
+
+Takeaways
+python を使うときは　python3と明示しよう。
+Do not use sudo pip.
+python 2 のコードがあるなら近代化する良い機会です(前向き)。
+所感
+いや〜これ、
+「〇〇の環境つくっといて」
+「できました！」
+「なんか動きおかしい、なにしたの?」
+「sudo pip hogehoge しときました」
+「RHEL 8 では御法度や」
+って絶対なりますよね?
+
+今から目に浮かぶわ
+
+少し真面目に考えると、
+
+rpm が提供されている場合は、yum でインストール
+それ以外は --user でインストール
+というあたりが、とりあえず手間と安全性のバランスが良さそうな気がします。
+
+RHEL 8 では python 3 が気軽に使えるという記事にするつもりだったのですが。。
+正式リリース時にはこの記事が無駄になることを祈ります。
+
+
+pip, venv といったコマンドに頼らないこと。代わりに python3 -m pip, python3 -m venv, python2 -m virtualenv などを使用する。
+
+なるほどー。
+
+先日、Jupyter notebook用のサーバを、Python3.4からPython3.6へ更新する作業があったのですが（CentOS7）、ensurepipしても切り替わらないやつがゴロゴロしているし、Jupyterの中のカーネルが3.4のままだっり、site-packagesが/usr/binと/usr/local/binにバラけてしまったりと、結構面倒でした。
+
+pipに関しては、pip -Vで確認しながら使っていましたが、pythonから呼び出したほうが、より安心ですね。
+
+$ pip -V
+pip 18.1 from /usr/local/lib/python3.6/site-packages/pip (python 3.6)
+
+go50
+3contribution
+2018-12-12 12:20
+0 いいね編集削除
+ensurepip 知りませんでした。勉強になります。
+site-packages 複数あると管理が面倒ですよね。
+
+pip だけで言うと、 python3 -m pip のほうが良さそうなのですが、RHEL 8 だと python 3 に関しては、システムツール用のライブラリを書き換えに行ってしまうところが罠ですね(逆に python 2 なら気にせず使えるという:frowning2:)。
+
+結局、ライブラリを入れ替えるときはユーザー側にいれるのを原則とするならディスクの節約というのはできないわけで、RHEL 8 の python 周りは「なんとか python 3 にしました」という感が拭えません。
+rpm で提供される python ライブラリの数が十分になれば、なんとかなりそうな気もしますが。
+
+
+utkamioka
+22contribution
+2018-12-12 12:25
+0
+“Platform-Python”を使ってシステムツールは動いています。
+
+だったら、Platform-Python-Librariesも切り離しておいてくれよ！ですね。
+OSの都合でユーザが振り回されている感が高くて、そうじゃないだろーと言わずにはいられない。
+
+
+go50
+3contribution
+2018-12-12 12:31
+0 いいね編集削除
+これ書くと記事が終わりそうで書きませんでしたが、やはり Anaconda を入れるのが一番確実かと。
+
+
+
+end_of_text
+
+
+
+手抜きのjavascript -var編-
+JavaScript
+1
+
+富士通ソーシアルサイエンスラボラトリ Advent Calendar 13日目！
+
+はじめに
+javascriptで、どのような変数宣言でもついつい「var」を使いますよね。
+使いますよね？
+そのようなアナタのために、なるべくvarを利用してみる方法をご紹介・・・
+しているようで、varのみ利用はめんどくさいという記事。
+
+結論
+まぁ、普通に「let」や「const」を使い分けた方がいいっす。
+letやconstの詳しい説明は、ES6の新機能: 「let」「const」宣言を調べてみたとか、
+letとvarの違いとかみてみてください。
+（こうやって手を抜いていくスタイル）
+
+手を抜きたい
+javascriptでは、変数宣言には長らくvarが使われてきました。
+が、ES6にてletやconstが追加され、変数を安全に利用することが可能となりました。
+（ES6ってなに？という方は、ES2015(ES6) 入門とかみるとよいかも）
+
+しかし、長年varを打ってきた手は、なかなかletとは打ってくれません。
+癖を治すのはめんどくさい。
+なので、プログラムの書き方の工夫による解決方法を無駄に探ってみました。
+
+その１：とにかく即時関数をつかう
+varというのは、関数スコープです。
+関数スコープとは、その名の通り関数（function）内で有効となります。
+例えば、ありがちなのが
+
+function sample(){
+  var rtn = "";
+  var lenA = 1;
+  var lenB = 2;
+  for (var i = 0; i <= lenA; i++){
+    rtn += "[" + i + "]";
+    for (var i = 0; i <= lenB; i++){
+      rtn += (i===0 ? i : ","+i);
+    }
+  }
+  return rtn;
+}
+というのを書いてしまう場合。
+期待する結果は「[0]0,1,2[1]0,1,2」なのですが、iをダブって使っているため
+「[0]0,1,2」という結果が返ってきてしまいます。
+関数内のコードが長く、複数のループを利用している場合にやりがちなミスです。
+
+このような場合、即時関数を利用してこう書いてしまいましょう。
+
+function sample(){
+  var rtn = "";
+  var lenA = 1;
+  var lenB = 2;
+  (function(){
+    for (var i = 0; i <= lenA; i++){
+      rtn += "[" + i + "]";
+      (function(){
+        for (var i = 0; i <= lenB; i++){
+          rtn += (i===0 ? i : ","+i);
+        }
+      })();
+    }
+  })();
+  return rtn;
+}
+即時関数って何？ってかたは、JavaScript基礎 即時関数とかみてみてください。
+varは関数スコープなので、ループ部分を即時変数化してしまえば問題ないのです！
+みなさん、varのみで変数指定したい場合は、forやifなどのブロックを見たら
+とにかく即時関数化していきましょう！
+（注：みなさんお気づきと思いますが、頭の悪い発想です。マネしてはいけません）
+
+その２：prototypeを利用してみる
+いっそ、prototype宣言を利用してみるというのも手です。
+
+function sample(){
+  this.rtn = "";
+  this.lenA = 1;
+  this.lenB = 2;
+}
+
+sample.prototype.itemA = function() {
+    for (var i = 0; i <= this.lenA; i++){
+        this.rtn += "[" + i + "]";
+        this.itemB();
+    }
+};
+
+sample.prototype.itemB = function() {
+    for (var i = 0; i <= this.lenB; i++){
+        this.rtn += (i===0 ? i : ","+i);
+    }
+};
+
+var s = new sample();
+s.itemA();  //これで、s.rtnは「[0]0,1,2[1]0,1,2」となる
+prototypeの場合はnewした単位で変数が保持されるので、
+似たような処理が複数ある場合に有効です。
+さらにprototype宣言で記載しようとすると関数内の処理は単機能となりがちなので、
+varによる変数設定ミスが起きにくくなります。
+（注：みなさんお気づきと思いますが以下略）
+
+なお、ちゃんとしたprototype宣言の詳細は、
+JavaScriptのプロトタイプからオブジェクト指向を学ぶとかをご参照ください。
+
+結局
+varの利用であれこれ考えるよりは、用途に応じてletやconstを利用したほうが良いです。
+当たり前ですが。
+ついついvarと打ってしまう方は、ちょっと注意してみましょう。
+
+しかし、javascriptはいろいろな書き方がありますね。
+
+ちなみに今回マークダウン初めてだったので、Qiita Markdown 書き方 まとめを参照しました。
+ありがとうございます。（あまり活かせていませんけど）
+
+
+
+end_of_text
+
+
+
+なんか作る
+Python
+curses
+2
+
+なんか作ってみる
+Pythonと何かで
+cursesを使って見た目動いてるものがいいかと思い、Macのターミナル上で”X”が左右へ移動するのを作りました。
+
+なんとかライダー2kのクルマのライトっぽい感じに見えるかしら。
+
+k2k.png
+
+Ctl-C入れると終わります。
+
+k2k.py
+import curses
+import time
+import signal
+import sys
+
+N_CNT = 12
+M_CNT = 24
+
+MIN_NUM = 1
+MAX_NUM = 26 
+
+def handler(signal, frame):
+        print('Done');
+        sys.exit(0)
+signal.signal(signal.SIGINT, handler)
+
+stdscr = curses.initscr()
+
+def main(stdscr):
+
+    n = N_CNT
+    m = M_CNT
+
+    while(True):
+
+        for i in range(MIN_NUM, MAX_NUM):
+
+            m =  m + 1
+
+            stdscr.clear()
+            stdscr.addstr(n, m, 'X')
+            stdscr.refresh()
+
+            time.sleep(0.1)
+
+        #stdscr.getkey()
+
+        for i in range(MIN_NUM, MAX_NUM):
+
+            m =  m - 1
+
+            stdscr.clear()
+            stdscr.addstr(n, m, 'X')
+            stdscr.refresh()
+
+            time.sleep(0.1)
+
+    pass
+
+if __name__ == '__main__':
+    curses.wrapper(main)
+ここ
+
+
+
+end_of_text
+
+
+
+Excelの入力規則でつくる食卓カレンダー
+Excel,
+入力規則
+2
+
+この記事は、富士通ソーシアルサイエンスラボラトリ Advent Calendar 2018の 15 日目の記事です。
+
+と名を打ってみましたが、やってることは単なるデータの入力規則によるリスト作りです。。
+
+はじめに
+お仕事柄、Excelには大変お世話になっているので、普段使っているExcelの入力規則を使いつつ、
+簡単な食卓カレンダーを作ってみようと。
+もういくつ寝ると～的なやつをイメージしてみた感じです。
+
+できたもの
+こんな感じで。
+見た目は単純なリストですが、入力規則を使って選択されたイベントに対応する日付や食べたいものリストを動的に選択できるようになっています。
+入力規則の動的リスト作成って色んな人がもう既に記事にされていますが気にしない！
+
+食卓カレンダーみたいなもの.png
+
+使っている数式
+IF
+OFFSET
+MATCH
+COUNTIF
+COUNTA
+データの入力規則について
+Excelの入力規則でリストを作る場合、『VLOOKUP』なんかが大活躍することも多いかと思いますが､『VLOOKUP』だと参照先の項目表に自由度が持たせられないので、色々とこうしたいな～というところがやりにくかったり。
+(基準となるキー項目は一番左の列に置かないといけないとか、複数キーを持たせたいときはどうするとか)
+
+そんなときに活躍してくれるのが『OFFSET』だったりするわけです。この辺りの情報はQiitaにも沢山投稿されていますね。（つまり二番煎じ？？）
+
+ちなみに『食卓カレンダー』のワークシートから入力規則で参照している『項目』ワークシートの内容はこんな感じ。
+
+入力規則用の項目.png
+
+『VLOOKUP』だと「イベント」、「日付」、「食べるもの」なんかはまとめて表にする必要がありますが、『OFFSET』を使えばそれぞれで切り分けられるという利点。
+お仕事的な話でいくと、例えば「イベント」、「日付」、「食べるもの」の各項目を試験工程の「大区分」、「中区分」、「小区分」なんかに置き換えて試験項目一覧なんかをつくれますよね～的な。
+
+実際に使っている入力規則
+■イベント名
+イベント名の入力規則.png
+
+=OFFSET(項目!$B$3,0,0,COUNTA(項目!$B$3:$B$100),1)
+■日付
+日付の入力規則.png
+
+=IF($B3<>"",OFFSET(項目!$F$3,MATCH($B3,項目!$E$3:$E$100,0)-1,0,COUNTIF(項目!$E$3:$E$100,$B3),1),$A$1)
+■何を食べたい？？？
+何を食べたい？？？の入力規則.png
+
+=IF($C3<>"",OFFSET(項目!$J$3,MATCH($B3,項目!$I$3:$I$100,0)-1,0,COUNTIF(項目!$I$3:$I$100,$B3),1),$A$1)
+■採決
+採決の入力規則.png
+
+=OFFSET(項目!$M$3,0,0,COUNTA(項目!$M$3:$M$100),1)
+入力規則の『COUNTA』や『COUNTIF』、『MATCH』でそれぞれの項目数よりも大きい値（$B$3:$B$100とか）を持たせている理由は、それぞれに対応する項目が増えたときに数式を再度変更しなくてもいいようにという理由からです。
+つまり、突然イベントが増えた場合でも『項目』ワークシートの「イベント」の下に項目を追加するだけで入力規則の数式は変えなくて大丈夫！という手抜きテクニック。
+なので、この幅は「$B$3:$B$100」でなく「$B$3:$B$1000」なんかでもいいわけですが、数式の計算コストは気にしておく方がいいかもですね。
+
+補足
+上記の数式を見れば一目瞭然ですが、『日付』と『何が食べたい？？？』の列の入力規則では、『IF』を使って前列の入力状態に応じて入力できるデータ内容を分けています。
+つまり、『イベント名』が入力されていないと『日付』は入力できず、また『日付』が入力されていないと『何が食べたい？？？』も入力できません。
+
+イベント名が入力されていない場合の日付選択.png
+日付が入力されていない場合の何が食べたい？？？選択.png
+
+こんな感じで。何故こういう規則にしたかは、完全に個人の趣味嗜好です。
+
+さいごに
+お仕事でExcelを使う機会が大変多いので、その仕事で覚えた入力規則のやり方を使って動的にリスト作成を行い、食卓カレンダーみたいなものを作ってみました。
+何やらOffice 2019からはVLOOKUPが高速化される1とかあったりするので、入力規則周りはまた色んなテクニックが生まれる気もしますね。今後のExcelさんの活躍に期待？！
+
+https://www.microsoft.com/en-us/microsoft-365/blog/2018/09/24/bringing-ai-to-excel-4-new-features-announced-today-at-ignite/ 
+
+
+
+end_of_text
+
+
+
+CodiMDによるドキュメント作成のすすめ
+Markdown
+HackMD
+CodiMD
+4
+
+たまたま弊社のアドベントカレンダーを見つけたので参加しました。
+（@moriyatakashijp さんありがとうございます！）
+
+はじめに
+Markdownは非常に簡単に覚えられます。
+そしてテキストですのでバージョン管理が容易です。
+社内全員が当たり前のように使えるようになるといいなと思います。
+今回はドキュメント作成において、あまりMarkdownを使ったことがない人でもすぐに始められるであろう、CodiMDというサービスをご紹介します。
+
+課題
+Markdownでドキュメントを作成するうえでいま感じている課題は以下の通りです。
+
+markdown執筆環境は人によりまちまち（VSCode、Atom、サクラエディタ、、、）
+markdownでは図を作成することが少々難しいのでどうにかしたい
+複数人で同時に編集したいことがある（議事録など）
+ドキュメントを適切にバージョン管理・レビューできるようにしたい
+最後のは、Githubなどとの連携を考える必要があるのでまた別の機会に。
+
+CodiMDとは
+CodiMDとは、WebブラウザでMarkdownのメモが書けるサービスです。
+クラウドだけではなくオンプレに構築することも出来るので、オンプレに構築すれば弊社でも利用できると思います。
+Qiitaの記事を書くエディターと似たようなものです。
+
+雰囲気
+こんな感じです。
+img1
+
+今回の記事もCodiMDで書いていますのでいろいろと触ってみてください。
+今回の記事元ネタ
+
+特徴
+以下、特徴です。
+
+執筆環境を統一できる
+CodiMDを構築すれば、全員が同じ環境でMarkdownでドキュメントを作成することが出来ます。
+各々が自端末に色々とインストールする必要はありません、ブラウザのお気に入りにURLを登録するだけです。
+
+共同編集ができる
+複数人が同時に編集することが出来ます。
+
+共同編集で一番の恩恵を受けるのは、打合せの場面です。
+議事録の作成を一人ではなく複数人でおこなうことで誤った議事録はその場で訂正することが出来ます。
+そしてその場で議事録のレビューは完了し展開することが出来ます。
+共同編集のやり方は、やはりURLを伝えるのみです。
+
+ただし、同時編集はやってみると難しいです。どっちが書くんだというお見合い状態になります。ですので議事録作成担当は決めておいたほうがいいでしょう。
+要所要所で記載内容を確認して違えば修正する。などが良いと思います。
+
+図や表を簡単に書ける
+表は、Markdownの記法のひとつで以下のように書けます。
+
+| Column 1 | Column 2 | Column 3 |
+| -------- | -------- | -------- |
+| Text     | Text     | Text     |
+
+Column 1	Column 2	Column 3
+Text	Text	Text
+エディタ上部のアイコンをクリックすることで出力されます。
+markdownでは表が書きづらいのでひな形をつくってくれるだけでもありがたいです。
+img2
+
+また、個人的に感動した点はシーケンスやガントチャートを書けるmermaidなどが扱えるということです。
+
+シーケンス
+```mermaid
+sequenceDiagram
+    participant Alice
+    participant Bob
+    Alice->John: Hello John, how are you?
+    loop Healthcheck
+        John->John: Fight against hypochondria
+    end
+    Note right of John: Rational thoughts <br/>prevail...
+    John-->Alice: Great!
+    John->Bob: How about you?
+    Bob-->John: Jolly good!
+
+image.png
+
+ガントチャート
+```mermaid
+gantt
+        dateFormat  YYYY-MM-DD
+        title Adding GANTT diagram functionality to mermaid
+        section A section
+        Completed task            :done,    des1, 2014-01-06,2014-01-08
+        Active task               :active,  des2, 2014-01-09, 3d
+        Future task               :         des3, after des2, 5d
+        Future task2               :         des4, after des3, 5d
+        section Critical tasks
+        Completed task in the critical line :crit, done, 2014-01-06,24h
+        Implement parser and jison          :crit, done, after des1, 2d
+        Create tests for parser             :crit, active, 3d
+        Future task in critical line        :crit, 5d
+        Create tests for renderer           :2d
+        Add to mermaid                      :1d
+image.png
+
+plantumlが使えるとユースケースやクラス図も簡単に書けるようになるのでよりうれしいです（Graphvizが使えるのでいずれ使えるようになるはずだと思います）。
+
+まとめ
+CodiMDについては私も最近知ったばかりでまだ使いこなせていません。
+興味があるかたは、機能紹介をご覧ください。
+
+だいぶドキュメントをMarkdownで作成する現場が増えてきています。
+私が関わったサービスもMarkdownで作成しHTMLでインターネットに公開しています（厳密にはasciidocというマークアップ言語ですが）。
+
+ぜひ、どなたかCodiMDを社内で使えるようにしてください！
+
+
+
+end_of_text
+
+
+
+Webで動くピタゴラスイッチ風のおもちゃ
+JavaScript
+TypeScript
+物理演算
+Matter.js
+9
+
+NHKの番組「ピタゴラスイッチ」で放映されている人気コーナー、通称「ピタゴラそうち」。
+
+私は社会人になってからもDVDを買ったりしている大ファンなのですが、
+いつか自分で作ってみたいなーと思いつつ、これまで手を出したことがありませんでした。
+
+そんな中、今年は先輩にアドベントカレンダーに誘って貰えたため、
+この機会にピタゴラそうちならぬピタゴラプログラムを作ってみようと思います。
+
+ピタゴラプログラムとは
+そもそもピタゴラそうちとは…という定義は大変なので、今回は"それっぽいもの"を作ることを目的とします。
+
+通常の「ピタゴラそうち」は物理世界で動いていますが、今から作る「ピタゴラプログラム」は
+デジタルならではの様々な表現を使うことができます。
+
+例えば
+
+座標を指定して物理法則に関係なくオブジェクトを動かすこと
+ユーザによるインタラクティブな操作ができること
+オブジェクトを変形させること
+などです。
+
+今回はこのような「デジタルだからこそできる表現」を意識しつつ、
+ピタゴラそうちっぽいプログラムを実装していきます。
+
+使用するライブラリ
+ピタゴラそうちといえば物理法則は欠かせませんので、物理演算のライブラリを使います。
+
+google先生に「2D 物理演算 javascript」と聞くと様々な種類がヒットしますが、
+今回は以前少しだけ経験のあるMatter.jsを使ことにしました。
+
+【Matter.js】 http://brm.io/matter-js/
+
+制作
+ここから先はゴールを決めず、気の向くままに実装していきます。
+
+0.準備
+Matter.jsのwikiを参考に、canvas上で物理演算ができるように準備します。
+
+https://github.com/liabru/matter-js/wiki/Getting-started
+
+ちなみに上記のサンプルを動かしたものはこちらです。
+
+https://codepen.io/masaoblue/pen/OrNqmK
+
+1.重力に従ってオブジェクトを落とす
+では、最初に動かすものを決めましょう。
+
+Matter.jsのデモページにも色んな動作がありますが、
+今回は上記のサンプルを見ていてひらめいた「社名の順に並ぶブロック」を作ってみます。
+
+何を言っているのかさっぱり分からないと思いますが、つまりこういうことです。
+
+https://codepen.io/masaoblue/pen/maPoqY
+image1.png
+
+canvas上にカーソルを乗せるとブロックが落下を始め、最終的に会社名の順に並びます。
+※Windows10&chromeのみ動作確認しています。
+
+massでオブジェクトの質量を、restitutionで反発係数を指定しつつ、オブジェクトの初期配置と角度を微調整することで、割と高い確率で並び順を制御することができました。
+
+2.衝突イベントを検知する
+丸いオブジェクトを見ていたら、どうしても坂を転がしたくなってきたので実装します。
+
+https://codepen.io/masaoblue/pen/bOpXbB
+（上と同様、カーソルを乗せると開始します）
+
+しかし直感だけで適当に坂を配置したため、隙間が狭くて玉が途中で止まってしまいました。
+image2.png
+
+じゃあ坂の位置を調整して…と一瞬考えたのですが、今回はせっかくのデジタル空間。
+どうせならリアルではできない動きにした方が面白そうです。
+
+そこで、「坂を動かす」のではなく「衝突を検知したら玉を縮小する」という
+デジタルっぽい方法で解決してみました。
+
+https://codepen.io/masaoblue/pen/LMZEjw
+image3.png
+（小さくすれば解決！）
+
+これで無事に一番下までたどり着くことができました。
+
+※ちなみにBody.scaleメソッドを使ってcircleオブジェクトを縮小すると計算精度が落ちて動きがおかしくなります。
+　https://github.com/liabru/matter-js/issues/326
+　これに気づくのに1時間かかった…
+
+3.オブジェクトに感情表現を追加する
+さて、ここまで来ると、「玉」と書かれたオブジェクトに妙な愛着が湧いてきました。
+（以降"玉ちゃん"と呼ぶことにします。）
+
+デバッグのために何度も動かしているうちに、
+　「恐らく玉ちゃんは壁にぶつかった時、どうすれば良いか悩んでいるだろう」
+と妄想が膨らみます。
+
+だとしたら、何か動きを追加することで感情を表現してあげる必要がありそうです。
+
+では実際に作ってみましょう。
+
+初めに、漫画などでよくあるビックリした時の表現（Σみたいなやつ）を作ります。
+canvasではquadraticCurveToメソッドを使うと二次ベジェ曲線が引けるのでこれを使いましょう。
+
+https://codepen.io/masaoblue/pen/vvKBjp
+
+image4.png
+（ビックリした時に出るやつ）
+
+最終的に、玉ちゃんが止まった時のイベントを検知し、このマークを適切な位置に配置すれば完成です。
+
+image5.png
+（ビックリしている玉ちゃん）
+
+できた！
+最終版はこちら。
+
+https://codepen.io/masaoblue/pen/OrXPdj
+
+不思議なもので、さっきまでただバウンドしているだけに見えた玉ちゃんが、
+今ではなんとなく喜んで飛び跳ねているように見えてきませんか？
+
+image6.png
+（壁を越えられて喜んでいる玉ちゃん）
+
+さいごに
+本当はもっと色々動かす予定でしたが、今日はここでタイムアップ。
+後半はPromiseを書くのも惜しくてcallback地獄を作ってしまいました。
+
+いつかそのうち気が向いたら、続きを作るかもしれません。
+
+それでは、機会を頂いた先輩に感謝しつつ終わりにします。
+
+最後までお付き合い頂きありがとうございました。
+
+参考URL
+typescriptの環境構築
+https://qiita.com/ochiochi/items/efdaa0ae7d8c972c8103
+Matter.jsでオブジェクトに文字列を表示する
+https://stackoverflow.com/a/53109020
+
+
+
+end_of_text
+
+
+
+認証プロキシをFiddlerで超える
+HTTP
+Fiddler
+3
+
+はじめに
+行く手を阻む認証プロキシを、Fiddlerで超えていきましょう。
+
+なぜ認証プロキシを超えなければならないのか
+そこに認証プロキシがある限り、避けて通ることはできないのです。
+
+どんなときにFiddlerをつかうのか
+使いたいアプリが認証プロキシに対応しているのなら、わざわざFiddlerを使う必要はありません。
+例えば、IE等のWebブラウザなら必要に応じて認証用のダイアログを表示してくれるでしょう。また、プロキシ設定を変更可能なアプリ1の大半は、認証情報を設定しておくことができます。
+
+しかし、認証プロキシに対応していないアプリも数多存在します。
+そんなときにFiddlerの出番です。
+
+なぜFiddlerなのか
+Fiddlerは、Webを利用するエンジニア必携のツールなので。
+
+認証プロキシをバイパスするためのツールは、Fiddler以外にも沢山あります。
+むしろ、認証プロキシを超えることだけが目的であれば、わざわざ多機能なFiddlerを選択する必要はないでしょう。
+
+しかし、前述のとおりFiddlerはエンジニア必携のツールなので、インストールされていて当然なのです。
+万一、まだFiddlerがインストールされていないという場合は、すぐにインストールしましょう。
+
+Fiddlerで認証プロキシを超える設定
+前置きが終わったところで、いよいよ認証プロキシを超える設定のご紹介です!!
+…と、はりきって設定手順を書いていこうと思っていたのですが、以下の記事でとても詳しく説明されていました。
+具体的な手順は以下を参照するとよいでしょう。
+
+認証プロキシ非対応アプリケーションを、認証プロキシ環境下で動かす方法
+
+手順を簡単にいうと、
+
+認証に必要な情報(文字列)を確認
+FiddlerScriptを以下の様に編集
+HTTP Requestで(OnBeforeRequest関数)
+Proxy-Authorizationヘッダを付与する
+ということになります。
+
+サンプルコードも貼っておきましょう。
+
+CustomRules.js
+static function OnBeforeRequest(oSession: Session) {
+    // (既存のコード)
+    // ......
+
+    // Basic認証で「aladdin:opensesame」を送信
+    oSession.oRequest["Proxy-Authorization"] = "Basic YWxhZGRpbjpvcGVuc2VzYW1l";
+}
+これだけで終わってしまうのも何なので、以下では少し補足をしていきたいと思います。
+
+FiddlerScript Editorについて
+上記の記事では「FiddlerScript Editor」を別途インストールしていますが、この手順は不要です。Fiddler本体と一緒にインストールされるはずです。
+
+スクリプトファイルについて
+スクリプトの編集方法は以下の3通りあります。
+
+[FiddlerScript]タブで編集
+上記記事で紹介されている方法です
+メニューの[Rules]-[Customize Rules...]でエディタを開いて編集
+デフォルトでは、「FiddlerScript Editor」が開きます
+スクリプトファイル(JS)を直接編集
+お好みのエディタで
+いずれの方法でも、変更対象となるのは以下のファイルです。
+%USERPROFILE%\Documents\Fiddler2\Scripts\CustomRules.js
+
+Proxy-Authorizationヘッダとは
+参照 → Proxy-Authorization - HTTP | MDN
+
+大概の場合、認証方式はBasic認証だと思います。
+なので、「Basicusername:password」をBase64でエンコードした文字列が値になるでしょう。
+
+文字列のエンコード方法
+上記記事の手順のように、実際にブラウザから認証した際の情報から認証用の文字列を取得してもよいですが、FiddlerにはTextWizardというツールがついてるので、これを利用するとよいでしょう。
+
+メニューの[Tools]-[TextWizard...]でTextWizardが開きます。
+[Transform]が[To Base64]になっていることを確認してください。
+TextWizard.PNG
+[Transform]の選択肢をみればわかるように、このツールは様々な形式を変換できるステキなツールです。
+
+Fiddler自身を認証プロキシにする
+メニューの[Rules]-[Require Proxy Authentication]をOnにすることで、Fiddler自身を認証プロキシにすることができます。
+この機能は、自作のアプリやスクリプト等が認証プロキシに対応できているかを確認する際などに利用できます。
+
+認証情報(Proxy-Authorization)が不正なRequestに対して、Fiddlerが以下のResponseを返してくれます。
+
+FiddlerからのResponse
+HTTP/1.1 407 Proxy Auth Required
+Connection: close
+Proxy-Authenticate: Basic realm="FiddlerProxy (user: 1, pass: 1)"
+Content-Type: text/html
+
+<html><body>[Fiddler] Proxy Authentication Required.<BR>                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+ブラウザではこんな感じ。
+dialog.PNG
+Responseに記載されているとおり、usernameとpasswordは1で通れます。この値は変更できません(たぶん)。
+
+おわりに
+最近は、ブラウザ搭載の開発者ツールが非常に充実しているのでFiddlerの出番は減ってきてはいます。
+しかし、ブラウザ以外からのHTTP通信を覗きたいときやREST APIをバシバシ呼びたいときなど、まだまだFiddlerが活躍できる場面は沢山あります。
+
+万一、まだFiddlerがインストールされていないという場合は、すぐにインストールしましょう。
+そして、認証プロキシにハマらないように、HTTP通信に失敗したら即Fiddlerを起動する習慣をつけましょう。
+
+では、よいお年を。
+
+ちょうどこのAdvent Calendarに関連する記事がありました → proxy が存在するネットワークから、インターネット上の何かにアクセスする 
+
+
+
+end_of_text
+
+
+
+PythonのloggingにTRACEレベルを増やす
+Python
+4
+
+はじめに
+前回「最初に覚えて欲しいPythonのロギング」で、ログを使うまでの最低限の手順を説明しました。
+
+loggingモジュールは標準機能だけあって、必要最低限というか、贅沢は言えない感じなんですが、それでも気になることがありました。
+それは「ループの最深部などのログはDEBUGよりも低いレベルで出力したい」ということです。
+
+という訳で、PythonのloggingモジュールにTRACEレベルを作ろうというのが、今回の趣旨です。
+
+とりあえずTRACEレベルで出力
+logging/__init__pyの中でログレベルは数値で定義されているので、
+DEBUGの10より小さい値を指定すれば実現できます。
+
+from logging basicConfig, getLogger, DEBUG, NOTSET
+
+basicConfig(level=NOTSET)  # 全てのレベルを出力対象にする
+
+logger = getLogger(__name__)
+logger.debug('this is debug')
+logger.log(DEBUG-1, 'this is trace')
+レベルNOTSETは0と定義されていて、これが設定された場合、階層構造の親ロガーの設定に従い、ルートまで辿った上で全てNOTSETだった場合は全てのログが出力対象となります。
+実行すると以下のように出力されます。
+
+実行結果
+DEBUG:__main__:this is debug
+Level 9:__main__:this is trace
+basicConfig(level=DEBUG)とした場合は、目的通り、"this is trace"は出力されず、"this is debug"だけ出力されます。
+しかし、この例ではいくつか気になる点があります。
+
+他がdebug(msg)とかinfo(msg)とかなのに、TRACEのところだけlog(level, msg)になっている。コードが浮いているし、毎回DEBUG-1を指定するのは面倒。
+出力されたログの表記が"Level 9"になっている。妙なところに空白が混ざると、ログ解析のパース処理で間違えそう。
+そもそも、DEBUG-1が何を意味するのかわかりにくい。
+改訂版
+前回のDogクラスを例に説明します。
+
+animals/dog.py
+from functools import partial
+from logging import getLogger, DEBUG
+
+class Dog(object):
+    def __init__(self, name):
+        self.name = name
+        self.logger = getLogger(__name__)
+        self.logger.trace = partial(self.logger.log, DEBUG-1)  # <= trace()作成
+
+    def run(self, distance):
+        for n in range(distance):
+            self.logger.trace('%s is running', self.name)  # <= trace()でログ出力
+        self.logger.info('%s is tired', self.name)
+main.py
+from animals.dog import Dog
+from logging import basicConfig, addLevelName, DEBUG, NOTSET
+
+if __name__ == '__main__':
+    basicConfig(level=NOTSET)
+    addLevelName(DEBUG-1, 'TRACE')  # <= TRACEレベルの表記指定
+    dog1 = Dog('pochi')
+    dog1.run(3)
+実行結果
+TRACE:animals.dog:pochi is running
+TRACE:animals.dog:pochi is running
+TRACE:animals.dog:pochi is running
+INFO:animals.dog:pochi is tired
+これで、info(level, msg)の隠蔽と、"Level 9"表記の切り替えは可能となりました。
+
+要点は以下の通り。
+
+Dogクラスの__init__()で、loggerオブエクトに新しい関数trace()を追加しています。functools.partialは指定した引数があらかじめ指定されたかのように振る舞う、新しい関数を作成します。
+mainの中のaddLevelName()で、指定したレベル（DEBUG-1）のレベル名（"TRACE"）を追加しています。
+残りの問題について
+DEBUG-1は何とかならないのか？
+たとえば、以下のような書き方をすれば、loggingモジュールにTRACEの定義を追加することができます。
+（import loggingとfrom logging import *が混在している問題については、とりあえず目をつぶってください。）
+
+from functools import partial
+from logging import basicConfig, addLevelName, DEBUG
+import logging
+
+# animals/dog.py
+class Dog(object):
+    def __init__(self):
+        self.logger = getLogger(__name__)
+        self.logger.trace = partial(self.logger.log, logger.TRACE)
+
+# main.py
+if __name__ == '__main__':
+    logging.TRACE = DEBUG - 1  # <= TRACEを定義
+    addLevelName(logging.TRACE, 'TRACE')
+しかし問題があります。
+
+main.pyを通さずDogクラスを使おうとした場合（例えばUnitテストとか）、logging.TRACEが定義されていないので、参照した瞬間にエラーになります。
+かと言って、Dogクラスで「logging.TRACEが無い場合は定義する」とした場合、Catクラス担当者とTRACEに何を定義するのか、意識合わせをしておく必要があります。
+animalsモジュールに定義するのも手ですが、その場合logging.DEBUGなど標準の定義と使い勝手が揃えられません。
+
+「Logging HOWTO」のカスタムレベルにも書いてありますが、ライブラリとして提供するコードでTRACEのような独自のレベルを定義するのは悪いアイデアだ、という意見に納得出来ます。
+
+まとめ
+締まりが無いですが、
+
+TRACEレベルは作れる。ただしプログラムコード全体をコントロールできる場合にのみ実施することが望ましい。
+という感じでしょうか。
+
+もっと良いアイデア・マサカリ、お待ちしています！
+
+
+end_of_text
+
+
+
+何も買わずに試すディープラーニング
+ディープラーニング
+Keras
+TensorFlow
+4
+
+はじめに
+　相変わらずAIが流行ってますね。その実態は機械学習、特にディープラーニングによるパターン認識やその逆変換による生成ですが、膨大な数の神経細胞を模しているニューラルネットワークであるため、かなりのコンピューティングパワーが必要です。
+　僕も今頃になって試してみようと思うのですが、運悪く自宅の自作PC(古ぼけたSandy Bridge)は故障して電源が入らなくなってしまい、使えるのはモバイルなSurface GoとMacBookのみです。最新GPUも欲しいですが、お金と時間と作業場所(部屋片付けないと…)が必要です。
+というわけで、いまどきならモノを買わなくても、クラウド上でお安くお手軽に試せるはずだと調べてみると、Google Cloud PlatformやGoogle Colaboratory が見つかりました。 
+メジャーなTensorFlowを開発しているGoogleのクラウドですから、相性も良いのではないでしょうか。
+
+レッツ、喫茶店でディープラーニング！
+
+Google Cloud Platform (Cloud Shell) と Google Colaboratory
+Googleのクラウドで手軽に試す環境としては、Google Cloud Platformの他にGoogle Colaboratory というものがあるようです。
+
+「Google Cloud Platform」 Cloud Shell
+Dockerコンテナが自動的に起動し、そこにWebブラウザ(Chrome)上からターミナル接続をしてくれるお手軽環境。
+デフォルトではDebian GNU/Linux。
+Java, Go, Python, Node.js, PHP, Ruby(Railsも) Google Cloud SDK 等がプリインストールされている。
+ログインしているGoogleアカウントに紐付いたアカウントで自動ログインされる。
+ログアウトしてもストレージの内容は残り続ける。(5GBの永続ディスクストレージ付き)
+無料!!
+その他詳細: https://cloud.google.com/shell/docs/features?hl=ja
+「Google Colaboratory」
+説明文の合間にその場で実行可能なコードが織り交ぜられるブログみたいなものが作れる環境で、教育・研修にぴったりです。
+参考: 【スマホOK/実行しながら学ぶ】東大松尾研のデータサイエンティスト育成/ Deep Learning基礎講座を自習する に従って演習のノートを開いてみると、その素晴らしさが分かるかと思います。Pythonの基礎から実際に実行しながら勉強が進められます。
+なお僕の環境では最初「The user has exceeded their Drive storage quota」エラーで動かなかったのですが、Google Driveの容量不足が原因でした。しかたないので、100GBを年額2500円で契約したところ動作しました。
+どっちがいいの?
+入門者としては後者の松尾研テキストを読みインラインのコード実行しつつ勉強し、前者の環境で本気の応用に向けて検証していきたいと思います。
+
+ということで、以下はGoogle Cloud Platform上でKeras/TensorFlowを試してみたメモです。
+
+MNISTの手書き数字認識をkeras/TensorFlowで実行してみる
+TensorFlowとKerasって? MNISTって?
+TensorFlow
+機械学習で最大シェアを持つGoogle製のオープンソース ソフトウェア ライブラリです。
+Keras
+Pythonで書かれた，TensorFlowなどの上で実行可能な高水準のニューラルネットワークライブラリです。TensorFlowのラッパーのようなもので、TensorFlowだけだと記述が大変なコードを比較的シンプルに記述できます。
+MNIST(Mixed National Institute of Standards and Technology database)
+手書き数字画像60,000枚と、テスト画像10,000枚を集めた、画像データセットです。機械学習の画像認識の学習において、初心者でも使いやすく、サンプルデータとしてもよく利用されているそうです。(機械学習で便利な画像データセット「MNIST」を丁寧に解説！より)
+Google Cloud Shellの画面を開く
+Cloud Shell をGoogle Chromeで開き、「Cloud Shellを起動する」ボタンを押す。(Googleアカウントでログインする必要があります)
+画面下に黒い背景のターミナル(TeraTerm的な…)がひらいて、プロンプトが表示され!たらOK。なお右端から2番目のアイコン「新しいウィンドウで開く」を押すと大きく画面を使えます。
+
+
+【小言】
+ブラウザのショートカットにとられてしまうせいで、WindowsだとCtrl-NやCtrl-Tなどがシェルに入力できず、emacs使うときなどけっこうストレス溜まりますが、調べた範囲ではChromeのショートカットキーは変更出来ないようです… 
+→ いちおう左端のアイコン「キーの組合せを送信」でCtrl-N等を送信できます。また同じメニューから「Chromeの拡張機能をインストール」を選ぶとSSH for Google Cloud Platformという拡張機能がインストールでき、これを使うと好きなキーが入力できるようです。
+Kerasをインストール
+Cloud ShellのデフォルトイメージにはTensorFlowはプリインストールされていますが、kerasは入っていないのでインストール。(pipではなくpip3であることを注意!)
+$ pip3 install keras
+MNISTの数字を認識するPythonサンプルソースをダウンロード
+サンプルをダウンロード(GitHubからKerasソースまるごとクローン!)
+$ git clone https://github.com/keras-team/keras.git
+このKerasソースの「examples」フォルダには、今回試すMNISTの数字を認識する「mnist_なんとか.py」というサンプルコードがいくつも入っていて、これを読むだけで勉強になります。
+ダウンロードしたサンプルをいきなり実行
+ダウンロードしたソースに含まれるサンプルのうち「mnist_mlp.py」を実行してみます。
+pythonではなくpython3で実行しないとエラーになるので注意!
+$ cd keras/examples
+$ python3 mnist_mlp.py
+成功すれば以下のような出力がされます。
+Using TensorFlow backend.
+60000 train samples
+10000 test samples
+_________________________________________________________________
+Layer (type)                 Output Shape              Param #
+=================================================================
+dense_1 (Dense)              (None, 512)               401920
+_________________________________________________________________
+dropout_1 (Dropout)          (None, 512)               0
+_________________________________________________________________
+dense_2 (Dense)              (None, 512)               262656
+_________________________________________________________________
+dropout_2 (Dropout)          (None, 512)               0
+_________________________________________________________________
+dense_3 (Dense)              (None, 10)                5130
+=================================================================
+Total params: 669,706
+Trainable params: 669,706
+Non-trainable params: 0
+_________________________________________________________________
+Train on 60000 samples, validate on 10000 samples
+Epoch 1/20
+60000/60000 [==============================] - 13s 214us/step - loss: 0.2422 - acc: 0.9248 - val_loss: 0.1048 - val_acc: 0.9655
+〜中略〜
+Epoch 20/20
+60000/60000 [==============================] - 25s 420us/step - loss: 0.0188 - acc: 0.9954 - val_loss: 0.1118 - val_acc: 0.9831
+Test loss: 0.11178437210872762
+Test accuracy: 0.9831
+何のことかさっぱり分からないので、kerasのmnistのサンプルを読んでみる を読んでみましょう。
+このサンプルコードの中では、MNISTの手書き数字サンプルを教師データと共に読み込んで繰り返し学習し、その結果のニューロンの結びつきを使って手書き数字サンプルを認識させているようです。
+最後の「Test accuracy: 0.9831」が認識精度。つまり学習結果を使って書き数字を認識した結果、98.31%の確率で正解したということでしょう。
+また、20回学習する行の最後に毎回ついてる「val_acc: 0.9831」というのがその回数での精度で、1回目では0.9655だったのが、20回目には0.9831と精度が向上していますね。
+ディープラーニングじゃない!?
+先ほど実行したサンプル(mnist_mlp.py)はMLP(多層パーセプトロン。バックプロパゲーション利用)というモデルを使っていて、1980年代の第二次AIブーム時に人気があった手法です。
+では第三次AIブーム(2000年代)から流行っている「ディープラーニング」を試すには? 同じexampleフォルダ内の「mnist_cnn.py」を実行すればいいんじゃないでしょうか。
+サンプルのファイル名にある「CNN」はConvolutional Neural Networkの略で日本語だと「畳み込みニューラルネットワーク」といいます。MLPより遙かに多数(深い=ディープ)のニューラルネットワーク中間層を持てることで、学習(ラーニング)が高性能になったものですね。(ざっくり)
+$ cd keras/examples
+$ python3 mnist_cnn.py
+実際試してみると、1回の学習に時間がかかりますが、少ない回数ではMLPより高い認識率となっているのが分かります。
+
+おわりに
+今回はKerasのサンプルを実行するだけでしたが、Cloud Shell上でかなり手軽に試せることは分かりました。ただ、これはDockrコンテナ上で普通のCPUを使って処理しているだけなので、とても遅いです。
+次は大量のGPUを擁するCLOUD MACHINE LEARNING ENGINEを使ってみたいですね。
+
+
+多層パーセプトロンは昔からの手法ですが、近年の deep learning で重要な dropout が入っていたりするので、deep learning の入門・勉強編です、くらいは言っても良さそうに思います。
+あとは、活性化関数を ReLU 関数に入れ替えて(記事中の「サンプルを読んで見る」にあります)みたりすると、わりと deep learning っぽいです。
+深い層のニューラルネットにすると、効果が体感できると思います。
+
+
+
+end_of_text
+
+
+
+Cytoscape.jsを用いてデータを可視化する
+graph
+cytoscape.js
+5
+
+Cytoscape.jsとは
+Cytoscape.jsは(http://js.cytoscape.org)
+オーペンソースのグラフ構造可視化のライブラリの一種です。
+使用言語はJavaScriptで、WEBページ上で簡単に触れるネットワークグラフを描画することができます。QS_20181212-151754.png
+
+Cytoscape.js基本要素
+cy :Cytoscapeのコア
+
+container :HTML DOM要素、グラフが指定されたcontainer内描画する
+
+elements :JSONオブジェクト、グラフの内容要素nodesとedges
+
+style :グラフを表現するためのCSS
+
+layout :グラフ全体のレイアウト（例えば：円形、樹形）
+
+Cytoscape.jsでグラフを表示してみよう
+initialGraph.js
+$(function(){
+  //内容要素はJSONオブジェクトである、サーバ側加工しフロントに渡すもの
+  var elements = {
+      nodes:[
+          //グラフの点、ノードのidが必須で、他の属性は機能によって調整するばよい
+          {data: {id: '172', name: 'Tom Cruise', label: 'Person'}},
+          {data: {id: '183', title: 'Top Gun', label: 'Movie'}}
+      ],
+      edges:[
+          //グラフの線、エッジはsource(開始点id)とtarget(終了点id)は必須で、他の属性も追加可能
+          {data: {source: '172', target: '183', relationship: 'Acted_In'}}
+      ],
+  }
+
+  //内容要素を表現するCSS
+  var style = [
+      //セレクターで拾いた内容要素が 指定したCSSを適用する
+      //ノードの中で、label属性は「Peson」のノードが青色で表示し、文字はname属性を表示する
+      { selector: 'node[label = "Person"]', 
+        css: {'background-color': '#6FB1FC', 'content': 'data(name)'}
+      },
+      //ノードの中で、label属性は「Movie」のノードがオレンジ色で表示し、文字はtitle属性を表示する
+      { selector: 'node[label = "Movie"]', 
+        css: {'background-color': '#F5A45D', 'content': 'data(title)'}
+      },
+      //エッジ全体で、文字はrelationship属性を表示する、終了点での矢印は三角形にする
+      { selector: 'edge', 
+        css: {'content': 'data(relationship)', 'target-arrow-shape': 'triangle'}
+      } 
+  ]
+
+  //レイアウト設定
+  var layout = {
+      //グリッドレイアウトを適用する
+      name : grid
+  }
+
+  // Cytoscapeオブジェクト初期化。
+  var cy = cytoscape({ 
+    // containerがHTML内の「cy」DOM要素に指定
+    container: document.getElementById('cy'),
+    elements: elements,
+    style: style,
+    layout: layout,
+  });
+});
+
+Graph.html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Learning Cytoscape.js</title>
+    <style type="text/css">
+        /* cytoscape graph */
+        #cy {
+            height: 300px;
+            width: 400px;
+            background-color: #f9f9f9;
+        }
+    </style>
+    <script src="http://cdn.bootcss.com/jquery/1.11.2/jquery.min.js"></script>
+    <script src="http://cdn.bootcss.com/cytoscape/2.3.16/cytoscape.min.js"></script>
+    <script src="initialGraph.js"></script>
+</head>
+<body>
+    <div id="cy"></div>
+</body>
+</html>
+表示結果
+QS_20181212-155058.png
+
+Cytoscape.jsの活用
+Layout
+レイアウトがグラフがすでに表示される状態でも再調整できる。
+Optionを指定すれば細かく調整できる。
+
+//cy全てのグラフ要素に対して 新レイアウトを適用
+var layout = cy.elements().layout({
+    name: 'random'
+    //レイアウトに合わせて、画像の視界を調整する
+    fit: true,
+    //レイアウト変換中アニメション効果を有効化
+    animate: true,
+});
+
+//適用開始
+layout.run();
+Animation
+アニメションが自分から設定し、欲しい演出効果がカスタマイズできる。
+
+//idが「j」の要素にアニメションを設定
+var j = cy.$('#j');
+
+//10秒内で、画像視界を指定要素まで調整（ZoomIn/Out）する、ペーディングが20px
+cy.animate({
+  fit: {
+    eles: j,
+    padding: 20
+  }
+}, {
+  duration: 1000
+});
+Events
+インタラクティブ的な操作を実現するため、グラフ要素にイベント設定ができる。
+
+//idが「j」の要素をクリックする時、コンソールログに要素のidを表示する
+cy.$('#j').on('tap', function(evt){
+  console.log( 'tap ' + evt.target.id() );
+});
+Extension
+Cytoscape.jsが標準機能以外に、幾つか拡張のUIやレイアウトを使用することができる。
+例えば：
+cxtmenu：ノードに輪の様なメニューを出せる
+popper：グラフ要素にDivを表示する
+cola：物理効果をシミュレーションするレイアウト
+
+最後に
+Cytoscape.jsの使用はD3などのライブラリと比べると、
+初心者に対しては結構簡単が、
+複雑なニーズにも拡張の余地を残しています。
+個人的にデータ可視化には勧められると思います。
+
+
+
+end_of_text
+
+
+
+ルーラーを表示して文字位置を揃える
+office
+Word
+PowerPoint
+ドキュメント
+2
+
+はじめに
+ルーラー使ってますか?
+
+この記事は、ルーラーのことをもっと多くの人に知って貰いたいという願いを込めて書きました。
+WordやPowerPointでスペースをダダダダーッと入力して文字位置を調整している人は、ルーラーを知ると幸せになれるでしょう。
+
+この記事の目的は、ルーラーの存在を知って貰うことです。ですから、ルーラーの使い方の詳細はこの記事では説明しません。
+使い方はググればたくさん出てきます。大事なのは、ググるためのキーワード「ルーラー」を知っていることです。
+
+以下の説明ではWordの画面を使用します1がPowerPointでも大体同じです。なお、残念ながらExcelにはルーラーはありません2。
+
+ルーラーの表示とタブ位置の設定
+まずはルーラーを表示しましょう。
+メニューから、[表示]-[表示]-[ルーラー]をOnにすればルーラーが表示されます。
+一旦ルーラーを表示したら、もう二度と非表示にする必要はありません。
+
+ルーラーでよく使うのは、「タブ位置の設定」でしょう。
+ぱっと見では「インデントの設定」が目立つのでこいつをいじりたくなりますが、今回は無視しましょう。
+
+タブ位置を設定することで、[Tab]直後の文字位置を設定できます!
+
+左揃えタブ
+文字位置を合わせたい段落を選択した状態で、「左揃えタブ」を追加すると…ビシッと揃う!!
+左揃えタブ
+
+中央揃えタブと右揃えタブ
+中央揃えや右揃えも楽々。
+タブ位置の種類を変更するためのタブセレクタは、ルーラーの左にあります。
+中央揃えタブと右揃えタブ
+
+小数点揃えタブ
+小数点揃えもできますよー。
+数値の桁を揃えたければ、これを使いましょう。
+小数点揃えタブ
+
+おわりに
+スペースがダダダダーッってなってるドキュメントは何かと辛いですね。半角カナや全角英数が混ざったドキュメントぐらいの辛さがあります。
+space.png
+こういう↑ドキュメントが少しでも減ることを願って。
+
+では、よいクリスマスを。
+
+参照
+タブ位置を設定、クリア、削除する - Office サポート
+タブとインデントの設定を表示する - PowerPoint
+スペースやタブ等の編集記号を表示できるため ↩
+
+ページレイアウトビューに余白調整用のルーラーはありますが、タブ位置の調整等はできません
+
+
